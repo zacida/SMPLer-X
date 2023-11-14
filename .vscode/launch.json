@@ -1,0 +1,43 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Inference",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/ziyuanding/SMPLer-X/main/inference.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "/home/ziyuanding/SMPLer-X/main/",
+            "args": ["--num_gpus", "1",
+            "--exp_name", "output/demo_dance",
+            "--pretrained_model", "smpler_x_s32",
+            "--agora_benchmark", "agora_model",
+            "--img_path", "../demo/images/dance",
+            "--start", "1",
+            "--end", "1198",
+            "--output_folder", "../demo/results/dance_s",
+            "--show_verts",
+            "--show_bbox",
+            "--save_mesh"
+        }
+    ]
+}
+
+// python inference.py \
+// --num_gpus 1 \
+// --exp_name output/demo_taiji \
+// --pretrained_model smpler_x_s32 \
+// --agora_benchmark agora_model \
+// --img_path ../demo/images/taiji \
+// --start 1 \
+// --end 412 \
+// --output_folder ../demo/results/taiji_s_debug \
+// --show_verts \
+// --show_bbox \
+// --save_mesh
+
+ssh-keygen -t ed25519 -C "ziyuan.ding.2022@gmail.com"
