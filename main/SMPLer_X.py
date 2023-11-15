@@ -4,12 +4,13 @@ from torch.nn import functional as F
 from nets.smpler_x import PositionNet, HandRotationNet, FaceRegressor, BoxNet, HandRoI, BodyRotationNet
 from nets.loss import CoordLoss, ParamLoss, CELoss
 from utils.human_models import smpl_x
-from utils.transforms import rot6d_to_axis_angle, restore_bbox
+from utils.transforms import rot6d_to_axis_angle,rot6d_to_rotmat, restore_bbox
 from config import cfg
 import math
 import copy
 from mmpose.models import build_posenet
 from mmcv import Config
+import numpy as np
 
 class Model(nn.Module):
     def __init__(self, encoder, body_position_net, body_rotation_net, box_net, hand_position_net, hand_roi_net,
@@ -176,7 +177,13 @@ class Model(nn.Module):
         # 2. Body Regressor
         body_joint_hm, body_joint_img = self.body_position_net(img_feat)
         root_pose, body_pose, shape, cam_param, = self.body_regressor(body_pose_token, shape_token, cam_token, body_joint_img.detach())
+        root_pose_mat = rot6d_to_rotmat(root_pose)
         root_pose = rot6d_to_axis_angle(root_pose)
+        body_pose_mat = rot6d_to_rotmat(body_pose.reshape(-1, 6))
+
+        body_pose_mat = np.vstack((body_pose_mat, body_pose_mat[-2:]))
+        my_body_pose_mat = np.vstack((root_pose_mat, body_pose_mat))
+
         body_pose = rot6d_to_axis_angle(body_pose.reshape(-1, 6)).reshape(body_pose.shape[0], -1)  # (N, J_R*3)
         cam_trans = self.get_camera_trans(cam_param)
 
@@ -373,6 +380,13 @@ class Model(nn.Module):
                 bbox[:, 3] *= cfg.input_img_shape[0] / cfg.input_body_shape[0]
 
             # test output
+            joint_proj[:,smpl_x.pos_joint_part['body'],0] *= (cfg.input_body_shape[1]/ cfg.output_hm_shape[2])
+            joint_proj[:,smpl_x.pos_joint_part['body'],1] *= (cfg.input_body_shape[0]/ cfg.output_hm_shape[1])
+
+            joint_proj[:,:,0] *= (cfg.input_img_shape[1] / cfg.input_body_shape[1])
+            joint_proj[:,:,1] *= (cfg.input_img_shape[0] / cfg.input_body_shape[0])    
+            # keep only body
+            joint_proj = joint_proj[:,range(0,25),:]
             out = {}
             out['img'] = inputs['img']
             out['joint_img'] = joint_img
@@ -389,6 +403,7 @@ class Model(nn.Module):
             out['lhand_bbox'] = lhand_bbox
             out['rhand_bbox'] = rhand_bbox
             out['face_bbox'] = face_bbox
+            out['my_body_pose_mat'] = my_body_pose_mat
             if 'smplx_shape' in targets:
                 out['smplx_shape_target'] = targets['smplx_shape']
             if 'img_path' in meta_info:

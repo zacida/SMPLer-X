@@ -18,7 +18,7 @@
             "--agora_benchmark", "agora_model",
             "--img_path", "../demo/images/dance",
             "--start", "1",
-            "--end", "1198",
+            "--end", "300",
             "--output_folder", "../demo/results/dance_s",
             "--show_verts",
             "--show_bbox",

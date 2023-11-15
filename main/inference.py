@@ -15,6 +15,7 @@ from tqdm import tqdm
 import json
 from typing import Literal, Union
 from mmdet.apis import init_detector, inference_detector
+import pickle
 from utils.inference_utils import process_mmdet_results, non_max_suppression
 
 def parse_args():
@@ -70,6 +71,10 @@ def main():
     config_file= '../pretrained_models/mmdet/mmdet_faster_rcnn_r50_fpn_coco.py'
     model = init_detector(config_file, checkpoint_file, device='cuda:0')  # or device='cuda:0'
 
+
+    my_body_pose_mats = []
+    my_cam_trans = []
+    my_gt_smplx_transl = []
     for frame in tqdm(range(start, end)):
         img_path = os.path.join(args.img_path, f'{int(frame):06d}.jpg')
 
@@ -163,6 +168,20 @@ def main():
             if args.show_bbox:
                 vis_img = cv2.rectangle(vis_img, start_point, end_point, (255, 0, 0), 2)
 
+            my_body_pose_mats.append(out['my_body_pose_mat'])
+            my_cam_trans.append(out['cam_trans'].cpu().numpy())
+
+            joint_proj = out['smplx_joint_proj'].cpu().numpy()[0]
+            joint_proj_xy1 = np.concatenate((joint_proj[:,:2], np.ones_like(joint_proj[:,:1])),1)
+            joint_proj = np.round(np.dot(bb2img_trans, joint_proj_xy1.transpose(1,0)).transpose(1,0)).astype(int)
+
+            for i,point in enumerate(joint_proj):
+                if point[0] > 1920 or point[0] < 0 or point[1] > 1080 or point[1] < 0:
+                    pass
+                else:
+                    cv2.circle(vis_img, (point[0], point[1]), 10, (255, 0, 0), -1)  # -1 fills the circle
+                    cv2.putText(vis_img, smpl_x.pos_joints_name[i], (point[0], point[1]), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 100))
+
             ## save single person meta
             meta = {'focal': focal, 
                     'princpt': princpt, 
@@ -182,7 +201,13 @@ def main():
         save_path_img = os.path.join(args.output_folder, 'img')
         os.makedirs(save_path_img, exist_ok= True)
         cv2.imwrite(os.path.join(save_path_img, f'{frame_name}'), vis_img[:, :, ::-1])
+    pk_dict = {}
+    pk_dict['pred_thetas'] = my_body_pose_mats
+    pk_dict['pred_betas'] =  []
+    pk_dict['transl_camsys'] = [t[0] for t in my_cam_trans]
 
+    with open(os.path.join(args.output_folder, 'import_me_to_blender.pk'), 'wb') as f:
+        pickle.dump(pk_dict, f)
 
 if __name__ == "__main__":
     main()

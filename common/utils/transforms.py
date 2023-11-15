@@ -68,6 +68,17 @@ def transform_joint_to_other_db(src_joint, src_name, dst_name):
 
     return new_joint
 
+def rot6d_to_rotmat(x):
+    batch_size = x.shape[0]
+
+    x = x.view(-1, 3, 2)
+    a1 = x[:, :, 0]
+    a2 = x[:, :, 1]
+    b1 = F.normalize(a1)
+    b2 = F.normalize(a2 - torch.einsum('bi,bi->b', b1, a2).unsqueeze(-1) * b1)
+    b3 = torch.cross(b1, b2)
+    rot_mat = torch.stack((b1, b2, b3), dim=-1)  # 3x3 rotation matrix
+    return rot_mat.cpu().numpy()
 
 def rot6d_to_axis_angle(x):
     batch_size = x.shape[0]
